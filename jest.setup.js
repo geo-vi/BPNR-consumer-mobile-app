@@ -3,6 +3,9 @@
 globalThis.__RN_JEST__ = true;
 
 import 'react-native-gesture-handler/jestSetup';
+import AxiosMockAdapter from 'axios-mock-adapter';
+import { apiClient } from './app/services/apiClient';
+import { registerDefaultApiMocks } from './app/services/apiMocks';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
@@ -27,3 +30,23 @@ jest.mock('react-native-reanimated', () =>
 jest.mock('react-native-safe-area-context', () =>
   require('react-native-safe-area-context/jest/mock').default,
 );
+
+jest.mock('@callstack/liquid-glass', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  return {
+    isLiquidGlassSupported: false,
+    LiquidGlassView: ({ children, ...props }) =>
+      React.createElement(View, props, children),
+    LiquidGlassContainerView: ({ children, ...props }) =>
+      React.createElement(View, props, children),
+  };
+});
+
+// Default axios mocks for unit tests (no real network).
+const axiosMock = new AxiosMockAdapter(apiClient, { onNoMatch: 'throwException' });
+globalThis.__BPNR_AXIOS_MOCK__ = axiosMock;
+globalThis.__BPNR_USE_API_MOCKS__ = true;
+
+registerDefaultApiMocks(axiosMock);

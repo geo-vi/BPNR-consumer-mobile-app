@@ -6,8 +6,10 @@ export const linking: LinkingOptions<RootTabParamList> = {
   config: {
     screens: {
       Home: 'home',
+      Transactions: 'txns',
+      Requests: 'requests',
+      Documents: 'documents',
       Settings: 'settings',
     },
   },
 };
-

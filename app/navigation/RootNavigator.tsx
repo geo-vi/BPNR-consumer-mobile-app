@@ -1,31 +1,54 @@
 import React from 'react';
-import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, Settings } from 'lucide-react-native';
-import type { RootTabParamList } from './types';
+import {
+  ArrowLeftRight,
+  ClipboardList,
+  FileText,
+  House,
+  Settings,
+} from 'lucide-react-native';
+import { useAtomValue } from 'jotai';
 import { HomeScreen } from '../screens/HomeScreen';
+import { TransactionsScreen } from '../screens/TransactionsScreen';
+import { RequestsScreen } from '../screens/RequestsScreen';
+import { DocumentsScreen } from '../screens/DocumentsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import { Platform } from 'react-native';
+import { isOnboardedAtom } from '../state/session';
+import { OnboardingScreen } from '../screens/onboarding/OnboardingScreen';
+import { RootTabs } from './RootTabs';
 
-const Tab = createBottomTabNavigator<RootTabParamList>();
+function MainTabs() {
+  return (
+    <RootTabs.Navigator
+      screenOptions={() => ({
+        headerShown: false,
+      })}
+    >
+      <RootTabs.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
+      <RootTabs.Screen
+        name="Transactions"
+        component={TransactionsScreen}
+        options={{ title: 'Txns' }}
+      />
+      <RootTabs.Screen
+        name="Requests"
+        component={RequestsScreen}
+        options={{ title: 'Requests' }}
+      />
+      <RootTabs.Screen
+        name="Documents"
+        component={DocumentsScreen}
+        options={{ title: 'Invoices' }}
+      />
+      <RootTabs.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ title: 'Settings' }}
+      />
+    </RootTabs.Navigator>
+  );
+}
 
 export function RootNavigator() {
-  return (
-    <Tab.Navigator>
-      <Tab.Screen name="Home" component={HomeScreen}         options={{
-          tabBarIcon: Platform.select({
-            ios: {
-              type: 'sfSymbol',
-              name: 'house',
-            },
-            android: {
-              type: 'materialSymbol',
-              name: 'home',
-            },
-          }),
-        }}
- />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
-    </Tab.Navigator>
-  );
+  const isOnboarded = useAtomValue(isOnboardedAtom);
+  return isOnboarded ? <MainTabs /> : <OnboardingScreen />;
 }
