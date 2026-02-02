@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  ImageBackground,
   Modal,
   Pressable,
   StyleSheet,
@@ -13,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { ArrowRight, Delete, MessageCircle, ScanQrCode } from 'lucide-react-native';
+import { AppBackground } from '../../components/ui/AppBackground';
 import { Button } from '../../components/ui/Button';
 import { GlassSurface } from '../../components/ui/GlassSurface';
 import { Screen } from '../../components/ui/Screen';
@@ -38,9 +38,6 @@ type RequestState =
   | { status: 'loading' }
   | { status: 'success' }
   | { status: 'error'; error: string };
-
-const ONBOARDING_BACKGROUND_IMAGE_URI =
-  'https://images.pexels.com/photos/5531617/pexels-photo-5531617.jpeg';
 
 const PRE_SAVED_COMPANIES = [
   { id: 'geovi-it-ltd', name: 'Geovi IT Ltd' },
@@ -545,23 +542,12 @@ function OnboardingBackgroundScreen({
   style,
   ...rest
 }: React.ComponentProps<typeof Screen>) {
-  const theme = useTheme();
-  const overlayColor = theme.isDark ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.4)';
-
   return (
-    <ImageBackground
-      source={{ uri: ONBOARDING_BACKGROUND_IMAGE_URI }}
-      resizeMode="cover"
-      style={[styles.background, { backgroundColor: theme.colors.background }]}
-    >
-      <View
-        pointerEvents="none"
-        style={[styles.backgroundOverlay, { backgroundColor: overlayColor }]}
-      />
+    <AppBackground>
       <Screen {...rest} style={[styles.transparentScreen, style]}>
         {children}
       </Screen>
-    </ImageBackground>
+    </AppBackground>
   );
 }
 
@@ -763,12 +749,6 @@ function KeypadKey({
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-  },
-  backgroundOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
   transparentScreen: {
     backgroundColor: 'transparent',
   },

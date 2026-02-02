@@ -35,6 +35,7 @@ export function HomeScreen() {
       <Screen
         edges={['left', 'right', 'bottom']}
         contentContainerStyle={styles.container}
+        style={styles.transparentScreen}
       >
         <ScreenHeader title="Dashboard" subtitle={`Last updated: ${lastUpdated}`} />
 
@@ -145,6 +146,9 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  transparentScreen: {
+    backgroundColor: 'transparent',
+  },
   container: {
     padding: 16,
     gap: 14,
