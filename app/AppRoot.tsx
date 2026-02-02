@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { useColorScheme } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { enableScreens } from 'react-native-screens';
 import { AppProviders } from './providers/AppProviders';
 import { RootNavigator } from './navigation/RootNavigator';
@@ -13,6 +13,15 @@ if (!isTestEnv) {
   enableScreens();
 }
 
+function AppFallback() {
+  return (
+    <View style={styles.fallback}>
+      <ActivityIndicator />
+      <Text style={styles.fallbackText}>Loading...</Text>
+    </View>
+  );
+}
+
 export function AppRoot() {
   const colorScheme = useColorScheme();
   const navigationTheme =
@@ -21,8 +30,22 @@ export function AppRoot() {
   return (
     <AppProviders>
       <NavigationContainer linking={linking} theme={navigationTheme}>
-        <RootNavigator />
+        <Suspense fallback={<AppFallback />}>
+          <RootNavigator />
+        </Suspense>
       </NavigationContainer>
     </AppProviders>
   );
 }
+
+const styles = StyleSheet.create({
+  fallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  fallbackText: {
+    fontSize: 16,
+  },
+});

@@ -12,7 +12,10 @@ export function HomeScreen() {
     <Screen contentContainerStyle={styles.container}>
       <Text style={styles.title}>Home</Text>
       <Text style={styles.label}>Counter: {count}</Text>
-      <Button title="Increment" onPress={() => setCount(v => v + 1)} />
+      <Button
+        title="Increment"
+        onPress={() => setCount(async promiseOrValue => (await promiseOrValue) + 1)}
+      />
     </Screen>
   );
 }
@@ -30,4 +33,3 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-
