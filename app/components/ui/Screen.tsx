@@ -1,4 +1,5 @@
 import React, { type PropsWithChildren } from 'react';
+import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import {
   ScrollView,
   StyleSheet,
@@ -24,17 +25,28 @@ export function Screen({
   style,
 }: Props) {
   const theme = useTheme();
+  const tabBarHeight = React.useContext(BottomTabBarHeightContext) ?? 0;
+  const flattenedContentStyle = StyleSheet.flatten(contentContainerStyle) ?? {};
+  const basePaddingBottom =
+    typeof flattenedContentStyle.paddingBottom === 'number'
+      ? flattenedContentStyle.paddingBottom
+      : 0;
+  const paddedContentStyle = [
+    contentContainerStyle,
+    { paddingBottom: basePaddingBottom + tabBarHeight + 24 },
+  ];
+
   return (
     <SafeAreaView
       edges={edges}
       style={[styles.safeArea, { backgroundColor: theme.colors.background }, style]}
     >
       {scroll ? (
-        <ScrollView contentContainerStyle={contentContainerStyle}>
+        <ScrollView contentContainerStyle={paddedContentStyle}>
           {children}
         </ScrollView>
       ) : (
-        <View style={contentContainerStyle}>{children}</View>
+        <View style={paddedContentStyle}>{children}</View>
       )}
     </SafeAreaView>
   );

@@ -1,5 +1,5 @@
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +11,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ArrowRight, Delete, MessageCircle, ScanQrCode } from 'lucide-react-native';
+import {
+  ArrowRight,
+  Delete,
+  MessageCircle,
+  ScanQrCode,
+  Server,
+} from 'lucide-react-native';
 import { AppBackground } from '../../components/ui/AppBackground';
 import { Button } from '../../components/ui/Button';
 import { GlassSurface } from '../../components/ui/GlassSurface';
@@ -31,18 +37,13 @@ import {
 import { useMockApiAtom } from '../../state/settings';
 import { useTheme } from '../../theme/ThemeProvider';
 
-type Step = 'connect' | 'checking' | 'login' | 'company';
+type Step = 'connect' | 'checking' | 'login';
 
 type RequestState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'success' }
   | { status: 'error'; error: string };
-
-const PRE_SAVED_COMPANIES = [
-  { id: 'geovi-it-ltd', name: 'Geovi IT Ltd' },
-  { id: 'it-works-ltd', name: 'IT Works Ltd' },
-] as const;
 
 const SAVED_COMPANY_PIN_LENGTH = 4;
 
@@ -52,7 +53,6 @@ export function OnboardingScreen() {
   const serverUrl = useAtomValue(serverUrlAtom);
   const discovery = useAtomValue(erpDiscoveryAtom);
   const accessToken = useAtomValue(accessTokenAtom);
-  const savedCompanyId = useAtomValue(selectedCompanyIdAtom);
 
   const setServerUrl = useSetAtom(serverUrlAtom);
   const setDiscovery = useSetAtom(erpDiscoveryAtom);
@@ -63,15 +63,13 @@ export function OnboardingScreen() {
 
   const [useMockApi, setUseMockApi] = useAtom(useMockApiAtom);
 
-  const [savedCompanyTarget, setSavedCompanyTarget] = useState<
-    (typeof PRE_SAVED_COMPANIES)[number] | null
-  >(null);
-  const [savedCompanyPin, setSavedCompanyPin] = useState('');
+  const [pinTarget, setPinTarget] = useState<Company | null>(null);
+  const [pinValue, setPinValue] = useState('');
+  const [pendingCompanyId, setPendingCompanyId] = useState<string | null>(null);
 
   const [step, setStep] = useState<Step>(() => {
     if (!serverUrl || !discovery) return 'connect';
-    if (!accessToken) return 'login';
-    return 'company';
+    return 'login';
   });
 
   const [serverUrlInput, setServerUrlInput] = useState(serverUrl ?? '');
@@ -87,12 +85,9 @@ export function OnboardingScreen() {
     status: 'idle',
   });
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [companyId, setCompanyId] = useState<string | null>(
-    savedCompanyId ? savedCompanyId : null,
-  );
+  const isMountedRef = useRef(true);
 
   const resolvedClientId = discovery?.clientId ?? 'bpnr-mobile';
-  const isCompanySelectionValid = companyId !== null && companies.some(c => c.id === companyId);
 
   const statusLabel = useMemo(() => {
     if (discoveryState.status === 'loading') return 'Checking…';
@@ -106,32 +101,36 @@ export function OnboardingScreen() {
   }, [serverUrl]);
 
   useEffect(() => {
-    setCompanyId(savedCompanyId ? savedCompanyId : null);
-  }, [savedCompanyId]);
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const effectiveAccessToken = accessToken ?? (useMockApi ? 'mock-access-token' : null);
 
   useEffect(() => {
-    if (step !== 'company') return;
-    if (!accessToken || !discovery) return;
+    if (!effectiveAccessToken || !discovery) return;
+    if (companiesState.status !== 'idle') return;
 
-    let cancelled = false;
     setCompaniesState({ status: 'loading' });
 
-    fetchCompanies(discovery.apiBaseUrl, accessToken)
+    fetchCompanies(discovery.apiBaseUrl, effectiveAccessToken)
       .then(list => {
-        if (cancelled) return;
+        if (!isMountedRef.current) return;
         setCompanies(list);
         setCompaniesAtom(list);
         setCompaniesState({ status: 'success' });
       })
       .catch(err => {
-        if (cancelled) return;
+        if (!isMountedRef.current) return;
         setCompaniesState({ status: 'error', error: errorMessage(err) });
       });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, discovery, setCompaniesAtom, step]);
+  }, [
+    companiesState.status,
+    discovery,
+    effectiveAccessToken,
+    setCompaniesAtom,
+  ]);
 
   async function onConnect() {
     const normalized = normalizeServerUrl(serverUrlInput);
@@ -158,7 +157,7 @@ export function OnboardingScreen() {
     }
   }
 
-  async function onLogin() {
+  const onLogin = useCallback(async () => {
     if (!discovery) return;
 
     setLoginState({ status: 'loading' });
@@ -173,11 +172,11 @@ export function OnboardingScreen() {
       setAccessToken(tokens.accessToken);
       setRefreshToken(tokens.refreshToken ?? null);
       setLoginState({ status: 'success' });
-      setStep('company');
+      setStep('login');
     } catch (err) {
       setLoginState({ status: 'error', error: errorMessage(err) });
     }
-  }
+  }, [discovery, resolvedClientId, setAccessToken, setRefreshToken, setStep]);
 
   function onContinueToLogin() {
     setLoginState({ status: 'idle' });
@@ -194,14 +193,10 @@ export function OnboardingScreen() {
     setLoginState({ status: 'idle' });
     setCompaniesState({ status: 'idle' });
     setCompanies([]);
-    setCompanyId(savedCompanyId ? savedCompanyId : null);
+    setPendingCompanyId(null);
+    setPinTarget(null);
+    setPinValue('');
     setStep('connect');
-  }
-
-  function onContinueCompany() {
-    if (!companyId) return;
-    if (!companies.some(c => c.id === companyId)) return;
-    setSelectedCompanyId(companyId);
   }
 
   function onScanQr() {
@@ -212,34 +207,82 @@ export function OnboardingScreen() {
     Alert.alert('Contact accountant', 'Not implemented yet.');
   }
 
-  function onPressSavedCompany(company: (typeof PRE_SAVED_COMPANIES)[number]) {
-    setSavedCompanyTarget(company);
-    setSavedCompanyPin('');
+  function onPressCompany(company: Company) {
+    setPinTarget(company);
+    setPinValue('');
   }
 
-  function onPressSavedCompanyDigit(digit: number) {
-    setSavedCompanyPin(prev => {
+  function onPressPinDigit(digit: number) {
+    setPinValue(prev => {
       if (prev.length >= SAVED_COMPANY_PIN_LENGTH) return prev;
       return `${prev}${digit}`;
     });
   }
 
-  function onPressSavedCompanyDelete() {
-    setSavedCompanyPin(prev => prev.slice(0, -1));
+  function onPressPinDelete() {
+    setPinValue(prev => prev.slice(0, -1));
   }
 
-  function onCancelSavedCompanyPin() {
-    setSavedCompanyTarget(null);
-    setSavedCompanyPin('');
+  function onCancelPin() {
+    setPinTarget(null);
+    setPinValue('');
   }
 
-  function onContinueSavedCompanyPin() {
-    if (!savedCompanyTarget) return;
-    if (savedCompanyPin.length !== SAVED_COMPANY_PIN_LENGTH) return;
-    setSavedCompanyTarget(null);
-    setSavedCompanyPin('');
-    Alert.alert('Saved company', `${savedCompanyTarget.name} unlocked (demo).`);
-  }
+  const finalizeCompanySelection = useCallback(
+    (companyId: string) => {
+      if (!companies.some(c => c.id === companyId)) {
+        Alert.alert('Company not found', 'Please choose another company.');
+        return;
+      }
+      setSelectedCompanyId(companyId);
+    },
+    [companies, setSelectedCompanyId],
+  );
+
+  useEffect(() => {
+    if (!pinTarget) return;
+    if (pinValue.length !== SAVED_COMPANY_PIN_LENGTH) return;
+    const target = pinTarget;
+    setPinTarget(null);
+    setPinValue('');
+
+    if (!accessToken) {
+      if (companiesState.status === 'error') {
+        setCompaniesState({ status: 'idle' });
+      }
+      setPendingCompanyId(target.id);
+      if (loginState.status !== 'loading') {
+        void onLogin();
+      }
+      return;
+    }
+
+    if (companies.length === 0 || companiesState.status !== 'success') {
+      if (companiesState.status === 'error') {
+        setCompaniesState({ status: 'idle' });
+      }
+      setPendingCompanyId(target.id);
+      return;
+    }
+
+    finalizeCompanySelection(target.id);
+  }, [
+    accessToken,
+    companies,
+    companiesState.status,
+    finalizeCompanySelection,
+    loginState.status,
+    onLogin,
+    pinTarget,
+    pinValue,
+  ]);
+
+  useEffect(() => {
+    if (!pendingCompanyId) return;
+    if (companiesState.status !== 'success') return;
+    finalizeCompanySelection(pendingCompanyId);
+    setPendingCompanyId(null);
+  }, [companiesState.status, finalizeCompanySelection, pendingCompanyId]);
 
   if (step === 'connect') {
     return (
@@ -292,37 +335,6 @@ export function OnboardingScreen() {
           </GlassSurface>
         ) : null}
 
-        <View style={styles.savedCompaniesSection}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Saved companies
-          </Text>
-          <View style={styles.savedCompaniesList}>
-            {PRE_SAVED_COMPANIES.map(company => (
-              <GlassSurface
-                key={company.id}
-                style={styles.savedCompanyCard}
-                effect="regular"
-                interactive
-              >
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Use saved company ${company.name}`}
-                  onPress={() => onPressSavedCompany(company)}
-                  style={({ pressed }) => [
-                    styles.savedCompanyCardContent,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={[styles.savedCompanyName, { color: theme.colors.text }]}>
-                    {company.name}
-                  </Text>
-                  <ArrowRight size={18} color={theme.colors.textMuted} />
-                </Pressable>
-              </GlassSurface>
-            ))}
-          </View>
-        </View>
-
         <View style={styles.troubleSection}>
           <Text style={[styles.troubleText, { color: theme.colors.text }]}>
             Having trouble?
@@ -336,17 +348,6 @@ export function OnboardingScreen() {
             />
           </View>
         </View>
-
-        <SavedCompanyPinModal
-          visible={savedCompanyTarget !== null}
-          companyName={savedCompanyTarget?.name ?? ''}
-          value={savedCompanyPin}
-          length={SAVED_COMPANY_PIN_LENGTH}
-          onDigitPress={onPressSavedCompanyDigit}
-          onDeletePress={onPressSavedCompanyDelete}
-          onCancel={onCancelSavedCompanyPin}
-          onContinue={onContinueSavedCompanyPin}
-        />
       </OnboardingBackgroundScreen>
     );
   }
@@ -384,18 +385,8 @@ export function OnboardingScreen() {
             </Text>
           ) : null}
 
-          <View style={styles.actionsRow}>
-            <Pressable onPress={onChangeServer} accessibilityRole="button">
-              <Text
-                style={[styles.secondaryAction, { color: theme.colors.accent }]}
-              >
-                Change server
-              </Text>
-            </Pressable>
-          </View>
-
           {discoveryState.status === 'success' ? (
-            <Button title="Continue to login" onPress={onContinueToLogin} />
+            <Button title="Open login" onPress={onContinueToLogin} />
           ) : (
             <Button
               title={discoveryState.status === 'loading' ? 'Connecting…' : 'Back'}
@@ -404,6 +395,8 @@ export function OnboardingScreen() {
             />
           )}
         </GlassSurface>
+
+        <ChangeServerButton onPress={onChangeServer} />
       </OnboardingBackgroundScreen>
     );
   }
@@ -414,57 +407,25 @@ export function OnboardingScreen() {
         scroll
         contentContainerStyle={styles.container}
       >
-        <Text style={[styles.title, { color: theme.colors.text }]}>Login</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          Choose company
+        </Text>
 
-        <GlassSurface style={styles.card} effect="regular" interactive>
-          <Row label="Realm" value={discovery?.realm ?? '—'} />
-          <Row label="Client" value={resolvedClientId} />
-
-          {loginState.status === 'loading' ? (
-            <View style={styles.inlineSpinner}>
-              <ActivityIndicator />
-              <Text
-                style={[styles.inlineSpinnerText, { color: theme.colors.text }]}
-              >
-                Waiting for login…
-              </Text>
-            </View>
-          ) : null}
-
-          {loginState.status === 'error' ? (
-            <Text style={[styles.error, { color: theme.colors.notification }]}>
-              {loginState.error}
+        {loginState.status === 'loading' ? (
+          <View style={styles.inlineSpinner}>
+            <ActivityIndicator />
+            <Text style={[styles.inlineSpinnerText, { color: theme.colors.text }]}>
+              Waiting for login…
             </Text>
-          ) : null}
-
-          <View style={styles.actionsRow}>
-            <Pressable onPress={onChangeServer} accessibilityRole="button">
-              <Text
-                style={[styles.secondaryAction, { color: theme.colors.accent }]}
-              >
-                Change server
-              </Text>
-            </Pressable>
           </View>
+        ) : null}
 
-          <Button
-            title={loginState.status === 'loading' ? 'Logging in…' : 'Continue to login'}
-            onPress={onLogin}
-            disabled={loginState.status === 'loading'}
-          />
-        </GlassSurface>
-      </OnboardingBackgroundScreen>
-    );
-  }
+        {loginState.status === 'error' ? (
+          <Text style={[styles.error, { color: theme.colors.notification }]}>
+            {loginState.error}
+          </Text>
+        ) : null}
 
-  return (
-    <OnboardingBackgroundScreen
-      scroll
-      contentContainerStyle={styles.container}
-    >
-      <Text style={[styles.title, { color: theme.colors.text }]}>Choose company</Text>
-
-      <GlassSurface style={styles.card} effect="regular" interactive>
         {companiesState.status === 'loading' ? (
           <View style={styles.inlineSpinner}>
             <ActivityIndicator />
@@ -481,60 +442,31 @@ export function OnboardingScreen() {
         ) : null}
 
         <View style={styles.companyList}>
-          {companies.map(company => {
-            const selected = company.id === companyId;
-            return (
-              <Pressable
-                key={company.id}
-                onPress={() => setCompanyId(company.id)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-                style={[
-                  styles.companyRow,
-                  { borderColor: theme.colors.hairline },
-                  selected && { backgroundColor: theme.colors.surface },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.radio,
-                    { borderColor: theme.colors.hairline },
-                    selected && { borderColor: theme.colors.accent },
-                  ]}
-                >
-                  {selected ? (
-                    <View
-                      style={[
-                        styles.radioInner,
-                        { backgroundColor: theme.colors.accent },
-                      ]}
-                    />
-                  ) : null}
-                </View>
-                <Text style={[styles.companyName, { color: theme.colors.text }]}>
-                  {company.name}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {companies.map(company => (
+            <CompanyCard
+              key={company.id}
+              company={company}
+              onPress={() => onPressCompany(company)}
+            />
+          ))}
         </View>
 
-        <View style={styles.actionsRow}>
-          <Pressable onPress={onChangeServer} accessibilityRole="button">
-            <Text style={[styles.secondaryAction, { color: theme.colors.accent }]}>
-              Change server
-            </Text>
-          </Pressable>
-        </View>
+        <ChangeServerButton onPress={onChangeServer} />
 
-        <Button
-          title="Continue"
-          onPress={onContinueCompany}
-          disabled={!isCompanySelectionValid || companiesState.status !== 'success'}
+        <SavedCompanyPinModal
+          visible={pinTarget !== null}
+          companyName={pinTarget?.name ?? ''}
+          value={pinValue}
+          length={SAVED_COMPANY_PIN_LENGTH}
+          onDigitPress={onPressPinDigit}
+          onDeletePress={onPressPinDelete}
+          onCancel={onCancelPin}
         />
-      </GlassSurface>
-    </OnboardingBackgroundScreen>
-  );
+      </OnboardingBackgroundScreen>
+    );
+  }
+
+  return null;
 }
 
 function OnboardingBackgroundScreen({
@@ -586,6 +518,57 @@ function TroubleAction({
   );
 }
 
+function ChangeServerButton({ onPress }: { onPress: () => void }) {
+  const theme = useTheme();
+
+  return (
+    <GlassSurface style={styles.changeServerSurface} effect="regular" interactive>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.changeServerButton,
+          pressed && styles.pressed,
+        ]}
+      >
+        <Server size={18} color={theme.colors.text} />
+        <Text style={[styles.changeServerText, { color: theme.colors.text }]}>
+          Change server
+        </Text>
+      </Pressable>
+    </GlassSurface>
+  );
+}
+
+function CompanyCard({
+  company,
+  onPress,
+}: {
+  company: Company;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+
+  return (
+    <GlassSurface style={styles.companyCard} effect="regular" interactive>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Use company ${company.name}`}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.companyCardContent,
+          pressed && styles.pressed,
+        ]}
+      >
+        <Text style={[styles.companyCardName, { color: theme.colors.text }]}>
+          {company.name}
+        </Text>
+        <ArrowRight size={18} color={theme.colors.textMuted} />
+      </Pressable>
+    </GlassSurface>
+  );
+}
+
 function Row({ label, value }: { label: string; value: string }) {
   const theme = useTheme();
 
@@ -613,7 +596,6 @@ function SavedCompanyPinModal({
   onDigitPress,
   onDeletePress,
   onCancel,
-  onContinue,
 }: {
   visible: boolean;
   companyName: string;
@@ -622,10 +604,8 @@ function SavedCompanyPinModal({
   onDigitPress: (digit: number) => void;
   onDeletePress: () => void;
   onCancel: () => void;
-  onContinue: () => void;
 }) {
   const theme = useTheme();
-  const isComplete = value.length === length;
   const pinDotBorderStyle = useMemo(
     () => ({ borderColor: theme.colors.hairline }),
     [theme.colors.hairline],
@@ -645,12 +625,31 @@ function SavedCompanyPinModal({
       <View style={styles.pinModalOverlay}>
         <GlassSurface style={styles.pinModalCard} effect="regular" interactive>
           <View style={styles.pinModalHeader}>
-            <Text style={[styles.pinModalTitle, { color: theme.colors.text }]}>
-              Enter code
-            </Text>
-            <Text style={[styles.pinModalSubtitle, { color: theme.colors.textMuted }]}>
-              {companyName}
-            </Text>
+            <View style={styles.pinModalHeaderRow}>
+              <View style={styles.pinModalHeaderText}>
+                <Text style={[styles.pinModalTitle, { color: theme.colors.text }]}>
+                  Enter code
+                </Text>
+                <Text
+                  style={[
+                    styles.pinModalSubtitle,
+                    { color: theme.colors.textMuted },
+                  ]}
+                >
+                  {companyName}
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancel PIN entry"
+                onPress={onCancel}
+                style={({ pressed }) => [pressed && styles.pressed]}
+              >
+                <Text style={[styles.pinModalCancel, { color: theme.colors.textMuted }]}>
+                  Cancel
+                </Text>
+              </Pressable>
+            </View>
           </View>
 
           <View style={styles.pinDots}>
@@ -696,11 +695,6 @@ function SavedCompanyPinModal({
                 <Delete size={20} color={theme.colors.text} />
               </KeypadKey>
             </View>
-          </View>
-
-          <View style={styles.pinModalActions}>
-            <Button title="Cancel" variant="secondary" onPress={onCancel} />
-            <Button title="Continue" onPress={onContinue} disabled={!isComplete} />
           </View>
         </GlassSurface>
       </View>
@@ -839,6 +833,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
+  changeServerSurface: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    alignSelf: 'stretch',
+  },
+  changeServerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    justifyContent: 'center',
+  },
+  changeServerText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -860,15 +871,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    marginBottom: 12,
-  },
-  secondaryAction: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
   inlineSpinner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -880,47 +882,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   companyList: {
-    gap: 8,
-    marginBottom: 12,
-  },
-  companyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  companyName: {
-    fontSize: 16,
-    fontWeight: '700',
-    flex: 1,
-  },
-  savedCompaniesSection: {
-    gap: 10,
-  },
-  savedCompaniesList: {
     gap: 12,
   },
-  savedCompanyCard: {
+  companyCard: {
     borderRadius: 18,
     overflow: 'hidden',
   },
-  savedCompanyCardContent: {
+  companyCardContent: {
     paddingHorizontal: 14,
     paddingVertical: 14,
     flexDirection: 'row',
@@ -928,15 +896,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  savedCompanyName: {
+  companyCardName: {
     fontSize: 16,
     fontWeight: '800',
     flex: 1,
   },
   pinModalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 16,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    paddingTop: 24,
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   pinModalCard: {
@@ -948,6 +918,16 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: 14,
   },
+  pinModalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  pinModalHeaderText: {
+    flex: 1,
+    gap: 4,
+  },
   pinModalTitle: {
     fontSize: 18,
     fontWeight: '800',
@@ -955,6 +935,10 @@ const styles = StyleSheet.create({
   pinModalSubtitle: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  pinModalCancel: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   pinDots: {
     flexDirection: 'row',
@@ -996,9 +980,5 @@ const styles = StyleSheet.create({
   keypadKeyText: {
     fontSize: 22,
     fontWeight: '800',
-  },
-  pinModalActions: {
-    flexDirection: 'row',
-    gap: 12,
   },
 });
