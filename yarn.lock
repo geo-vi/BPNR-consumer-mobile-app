@@ -1955,6 +1955,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@mhpdev/react-native-haptics@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "@mhpdev/react-native-haptics@npm:1.1.0"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/e848c94715cb9b0d926f5fc2049e4b37d3698d2b3886ed959e325add58b99df6bdaff40ce106f4b505b9632a99a89e235e6c2eb26ba0394d9a352b58a609ff64
+  languageName: node
+  linkType: hard
+
 "@nicolo-ribaudo/eslint-scope-5-internals@npm:5.1.1-v1":
   version: 5.1.1-v1
   resolution: "@nicolo-ribaudo/eslint-scope-5-internals@npm:5.1.1-v1"
@@ -2892,6 +2902,7 @@ __metadata:
     "@babel/preset-env": "npm:^7.25.3"
     "@babel/runtime": "npm:^7.25.0"
     "@callstack/liquid-glass": "npm:^0.7.0"
+    "@mhpdev/react-native-haptics": "npm:^1.1.0"
     "@react-native-async-storage/async-storage": "npm:^2.2.0"
     "@react-native-community/cli": "npm:20.0.0"
     "@react-native-community/cli-platform-android": "npm:20.0.0"

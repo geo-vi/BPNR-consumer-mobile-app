@@ -3,6 +3,7 @@ import {
   StyleSheet,
   View,
   type StyleProp,
+  type ViewProps,
   type ViewStyle,
 } from 'react-native';
 import {
@@ -12,13 +13,15 @@ import {
 } from '@callstack/liquid-glass';
 import { useTheme } from '../../theme/ThemeProvider';
 
-type Props = PropsWithChildren<{
-  style?: StyleProp<ViewStyle>;
-  effect?: LiquidGlassViewProps['effect'];
-  interactive?: LiquidGlassViewProps['interactive'];
-  tintColor?: LiquidGlassViewProps['tintColor'];
-  colorScheme?: LiquidGlassViewProps['colorScheme'];
-}>;
+type Props = PropsWithChildren<
+  {
+    style?: StyleProp<ViewStyle>;
+    effect?: LiquidGlassViewProps['effect'];
+    interactive?: LiquidGlassViewProps['interactive'];
+    tintColor?: LiquidGlassViewProps['tintColor'];
+    colorScheme?: LiquidGlassViewProps['colorScheme'];
+  } & Omit<ViewProps, 'style'>
+>;
 
 export function GlassSurface({
   children,
@@ -27,6 +30,7 @@ export function GlassSurface({
   interactive = false,
   tintColor,
   colorScheme = 'system',
+  ...viewProps
 }: Props) {
   const theme = useTheme();
   const fallback = theme.colors.surface;
@@ -35,6 +39,7 @@ export function GlassSurface({
   if (!isLiquidGlassSupported) {
     return (
       <View
+        {...viewProps}
         style={[
           styles.fallback,
           { backgroundColor: fallback, borderColor: fallbackBorder },
@@ -48,6 +53,7 @@ export function GlassSurface({
 
   return (
     <LiquidGlassView
+      {...viewProps}
       style={style}
       effect={effect}
       interactive={interactive}

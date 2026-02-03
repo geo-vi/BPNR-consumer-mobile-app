@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { Bell, ChevronDown } from 'lucide-react-native';
+import { isLiquidGlassSupported } from '@callstack/liquid-glass';
 import { useAtom, useAtomValue } from 'jotai';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GlassSurface } from './GlassSurface';
@@ -37,28 +38,49 @@ export function AppTopBar() {
   const [companyPickerOpen, setCompanyPickerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
+  const openNotifications = () => setNotificationsOpen(true);
+
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
-      <GlassSurface style={styles.bar} effect="regular" interactive>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setCompanyPickerOpen(true)}
-          style={({ pressed }) => [styles.companyButton, pressed && styles.pressed]}
-        >
-          <Text numberOfLines={1} style={[styles.companyText, { color: fg }]}>
-            {selectedCompany?.name ?? 'Select company'}
-          </Text>
-          <ChevronDown size={16} color={mutedFg} />
-        </Pressable>
+      <View style={styles.row}>
+        <GlassSurface style={styles.companySurface} effect="regular" interactive>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setCompanyPickerOpen(true)}
+            style={({ pressed }) => [styles.companyButton, pressed && styles.pressed]}
+          >
+            <Text numberOfLines={1} style={[styles.companyText, { color: fg }]}>
+              {selectedCompany?.name ?? 'Select company'}
+            </Text>
+            <ChevronDown size={16} color={mutedFg} />
+          </Pressable>
+        </GlassSurface>
 
-        <View style={styles.right}>
-          <View style={styles.badgeWrap}>
-            <IconButton
-              accessibilityLabel="Notifications"
-              icon={Bell}
-              color={fg}
-              onPress={() => setNotificationsOpen(true)}
-            />
+        <GlassSurface
+          style={styles.notificationsSurface}
+          effect="regular"
+          interactive
+          accessible={isLiquidGlassSupported}
+          accessibilityRole={isLiquidGlassSupported ? 'button' : undefined}
+          accessibilityLabel={isLiquidGlassSupported ? 'Notifications' : undefined}
+          onTouchEnd={isLiquidGlassSupported ? openNotifications : undefined}
+          onAccessibilityTap={isLiquidGlassSupported ? openNotifications : undefined}
+        >
+          <View
+            style={styles.badgeWrap}
+            pointerEvents={isLiquidGlassSupported ? 'none' : 'auto'}
+          >
+            {isLiquidGlassSupported ? (
+              <Bell color={fg} size={20} />
+            ) : (
+              <IconButton
+                accessibilityLabel="Notifications"
+                icon={Bell}
+                color={fg}
+                onPress={openNotifications}
+                style={styles.notificationsButton}
+              />
+            )}
             {unread > 0 ? (
               <View style={[styles.badge, { backgroundColor: theme.colors.notification }]}>
                 <Text style={styles.badgeText}>
@@ -67,8 +89,8 @@ export function AppTopBar() {
               </View>
             ) : null}
           </View>
-        </View>
-      </GlassSurface>
+        </GlassSurface>
+      </View>
 
       <Modal
         animationType="fade"
@@ -148,18 +170,32 @@ const styles = StyleSheet.create({
   safe: {
     backgroundColor: 'transparent',
   },
-  bar: {
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginHorizontal: 12,
     marginBottom: 8,
+    gap: 10,
+  },
+  companySurface: {
+    flex: 1,
     borderRadius: 18,
     overflow: 'hidden',
+  },
+  notificationsSurface: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   companyButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    height: 44,
   },
   companyText: {
     maxWidth: 220,
@@ -169,20 +205,21 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.85,
   },
-  right: {
-    position: 'absolute',
-    right: 4,
-    top: 2,
-    bottom: 2,
-    justifyContent: 'center',
-  },
   badgeWrap: {
     position: 'relative',
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationsButton: {
+    width: 44,
+    height: 44,
   },
   badge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: 6,
+    right: 6,
     minWidth: 18,
     height: 18,
     borderRadius: 999,

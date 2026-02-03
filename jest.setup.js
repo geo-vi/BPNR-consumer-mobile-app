@@ -44,6 +44,37 @@ jest.mock('@callstack/liquid-glass', () => {
   };
 });
 
+jest.mock('react-native-gifted-charts', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const createMock = name => {
+    const Mock = ({ children, style }) =>
+      React.createElement(View, { testID: name, style }, children);
+    Mock.displayName = name;
+    return Mock;
+  };
+
+  return {
+    BarChart: createMock('BarChart'),
+    LineChart: createMock('LineChart'),
+    PieChart: createMock('PieChart'),
+    PopulationPyramid: createMock('PopulationPyramid'),
+    RadarChart: createMock('RadarChart'),
+    BubbleChart: createMock('BubbleChart'),
+  };
+});
+
+jest.mock('@mhpdev/react-native-haptics', () => ({
+  __esModule: true,
+  default: {
+    impact: jest.fn(() => Promise.resolve()),
+    notification: jest.fn(() => Promise.resolve()),
+    selection: jest.fn(() => Promise.resolve()),
+    androidHaptics: jest.fn(() => Promise.resolve()),
+  },
+}));
+
 // Default axios mocks for unit tests (no real network).
 const axiosMock = new AxiosMockAdapter(apiClient, { onNoMatch: 'throwException' });
 globalThis.__BPNR_AXIOS_MOCK__ = axiosMock;

@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { ActivityIndicator, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { enableScreens } from 'react-native-screens';
 import { AppProviders } from './providers/AppProviders';
+import { AppBackground } from './components/ui/AppBackground';
 import { RootNavigator } from './navigation/RootNavigator';
 import { linking } from './navigation/linking';
 import { getNavigationTheme } from './theme/navigationTheme';
@@ -20,12 +21,14 @@ if (!isTestEnv) {
 function AppFallback() {
   const theme = useTheme();
   return (
-    <View style={[styles.fallback, { backgroundColor: theme.colors.background }]}>
-      <ActivityIndicator color={theme.colors.textMuted} />
-      <Text style={[styles.fallbackText, { color: theme.colors.text }]}>
-        Loading...
-      </Text>
-    </View>
+    <AppBackground>
+      <View style={styles.fallback}>
+        <ActivityIndicator color={theme.colors.textMuted} />
+        <Text style={[styles.fallbackText, { color: theme.colors.text }]}>
+          Loading...
+        </Text>
+      </View>
+    </AppBackground>
   );
 }
 

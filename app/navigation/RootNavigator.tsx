@@ -1,11 +1,4 @@
 import React from 'react';
-import {
-  ArrowLeftRight,
-  ClipboardList,
-  FileText,
-  House,
-  Settings,
-} from 'lucide-react-native';
 import { useAtomValue } from 'jotai';
 import { HomeScreen } from '../screens/HomeScreen';
 import { TransactionsScreen } from '../screens/TransactionsScreen';
