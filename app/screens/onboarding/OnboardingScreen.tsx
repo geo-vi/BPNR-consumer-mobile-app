@@ -22,6 +22,7 @@ import { AppBackground } from '../../components/ui/AppBackground';
 import { Button } from '../../components/ui/Button';
 import { GlassSurface } from '../../components/ui/GlassSurface';
 import { Screen } from '../../components/ui/Screen';
+import { useI18n } from '../../i18n/useI18n';
 import { fetchCompanies, type Company } from '../../services/companies';
 import { discoverErp } from '../../services/erpDiscovery';
 import { loginWithPkce } from '../../services/oidc';
@@ -49,6 +50,7 @@ const SAVED_COMPANY_PIN_LENGTH = 4;
 
 export function OnboardingScreen() {
   const theme = useTheme();
+  const { strings: s } = useI18n();
 
   const serverUrl = useAtomValue(serverUrlAtom);
   const discovery = useAtomValue(erpDiscoveryAtom);
@@ -90,11 +92,11 @@ export function OnboardingScreen() {
   const resolvedClientId = discovery?.clientId ?? 'bpnr-mobile';
 
   const statusLabel = useMemo(() => {
-    if (discoveryState.status === 'loading') return 'Checking…';
-    if (discoveryState.status === 'success') return 'OK';
-    if (discoveryState.status === 'error') return 'Error';
+    if (discoveryState.status === 'loading') return s.onboarding.checking;
+    if (discoveryState.status === 'success') return s.onboarding.ok;
+    if (discoveryState.status === 'error') return s.onboarding.error;
     return '—';
-  }, [discoveryState.status]);
+  }, [discoveryState.status, s.onboarding.checking, s.onboarding.error, s.onboarding.ok]);
 
   useEffect(() => {
     setServerUrlInput(serverUrl ?? '');
@@ -123,19 +125,23 @@ export function OnboardingScreen() {
       })
       .catch(err => {
         if (!isMountedRef.current) return;
-        setCompaniesState({ status: 'error', error: errorMessage(err) });
+        setCompaniesState({
+          status: 'error',
+          error: errorMessage(err, s.onboarding.somethingWentWrong),
+        });
       });
   }, [
     companiesState.status,
     discovery,
     effectiveAccessToken,
     setCompaniesAtom,
+    s.onboarding.somethingWentWrong,
   ]);
 
   async function onConnect() {
     const normalized = normalizeServerUrl(serverUrlInput);
     if (!normalized) {
-      setConnectError('Enter a valid server URL.');
+      setConnectError(s.onboarding.enterValidServerUrl);
       return;
     }
 
@@ -153,7 +159,10 @@ export function OnboardingScreen() {
       setDiscovery(doc);
       setDiscoveryState({ status: 'success' });
     } catch (err) {
-      setDiscoveryState({ status: 'error', error: errorMessage(err) });
+      setDiscoveryState({
+        status: 'error',
+        error: errorMessage(err, s.onboarding.somethingWentWrong),
+      });
     }
   }
 
@@ -174,9 +183,19 @@ export function OnboardingScreen() {
       setLoginState({ status: 'success' });
       setStep('login');
     } catch (err) {
-      setLoginState({ status: 'error', error: errorMessage(err) });
+      setLoginState({
+        status: 'error',
+        error: errorMessage(err, s.onboarding.somethingWentWrong),
+      });
     }
-  }, [discovery, resolvedClientId, setAccessToken, setRefreshToken, setStep]);
+  }, [
+    discovery,
+    resolvedClientId,
+    s.onboarding.somethingWentWrong,
+    setAccessToken,
+    setRefreshToken,
+    setStep,
+  ]);
 
   function onContinueToLogin() {
     setLoginState({ status: 'idle' });
@@ -200,11 +219,11 @@ export function OnboardingScreen() {
   }
 
   function onScanQr() {
-    Alert.alert('Scan QR', 'Not implemented yet.');
+    Alert.alert(s.onboarding.scanQr, s.onboarding.notImplementedYet);
   }
 
   function onContactAccountant() {
-    Alert.alert('Contact accountant', 'Not implemented yet.');
+    Alert.alert(s.onboarding.contactAccountant, s.onboarding.notImplementedYet);
   }
 
   function onPressCompany(company: Company) {
@@ -231,12 +250,20 @@ export function OnboardingScreen() {
   const finalizeCompanySelection = useCallback(
     (companyId: string) => {
       if (!companies.some(c => c.id === companyId)) {
-        Alert.alert('Company not found', 'Please choose another company.');
+        Alert.alert(
+          s.onboarding.companyNotFoundTitle,
+          s.onboarding.companyNotFoundBody,
+        );
         return;
       }
       setSelectedCompanyId(companyId);
     },
-    [companies, setSelectedCompanyId],
+    [
+      companies,
+      s.onboarding.companyNotFoundBody,
+      s.onboarding.companyNotFoundTitle,
+      setSelectedCompanyId,
+    ],
   );
 
   useEffect(() => {
@@ -291,15 +318,17 @@ export function OnboardingScreen() {
         contentContainerStyle={styles.container}
       >
         <Text style={[styles.title, { color: theme.colors.text }]}>
-          Connect your company
+          {s.onboarding.connectYourCompany}
         </Text>
 
         <GlassSurface style={styles.card} effect="regular" interactive>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Server URL</Text>
+          <Text style={[styles.label, { color: theme.colors.text }]}>
+            {s.onboarding.serverUrl}
+          </Text>
           <TextInput
             value={serverUrlInput}
             onChangeText={setServerUrlInput}
-            placeholder="https://erp.acme.example"
+            placeholder={s.onboarding.serverUrlPlaceholder}
             placeholderTextColor={theme.colors.placeholder}
             autoCapitalize="none"
             autoCorrect={false}
@@ -314,7 +343,7 @@ export function OnboardingScreen() {
               {connectError}
             </Text>
           ) : null}
-          <Button title="Connect" onPress={onConnect} />
+          <Button title={s.onboarding.connect} onPress={onConnect} />
         </GlassSurface>
 
         {__DEV__ ? (
@@ -322,12 +351,12 @@ export function OnboardingScreen() {
             <View style={styles.mockRow}>
               <View style={styles.mockText}>
                 <Text style={[styles.mockTitle, { color: theme.colors.text }]}>
-                  Use mock backend
+                  {s.onboarding.useMockBackend}
                 </Text>
                 <Text
                   style={[styles.mockSubtitle, { color: theme.colors.textMuted }]}
                 >
-                  Local fixtures (no real network/OIDC).
+                  {s.onboarding.useMockBackendSubtitle}
                 </Text>
               </View>
               <Switch value={useMockApi} onValueChange={setUseMockApi} />
@@ -337,12 +366,16 @@ export function OnboardingScreen() {
 
         <View style={styles.troubleSection}>
           <Text style={[styles.troubleText, { color: theme.colors.text }]}>
-            Having trouble?
+            {s.onboarding.havingTrouble}
           </Text>
           <View style={styles.troubleActions}>
-            <TroubleAction label="Scan QR" icon={ScanQrCode} onPress={onScanQr} />
             <TroubleAction
-              label="Contact accountant"
+              label={s.onboarding.scanQr}
+              icon={ScanQrCode}
+              onPress={onScanQr}
+            />
+            <TroubleAction
+              label={s.onboarding.contactAccountant}
               icon={MessageCircle}
               onPress={onContactAccountant}
             />
@@ -359,14 +392,14 @@ export function OnboardingScreen() {
         contentContainerStyle={styles.container}
       >
         <Text style={[styles.title, { color: theme.colors.text }]}>
-          Checking server…
+          {s.onboarding.checkingServer}
         </Text>
 
         <GlassSurface style={styles.card} effect="regular" interactive>
-          <Row label="Discovery" value="/.well-known/erp.json" />
-          <Row label="Status" value={statusLabel} />
-          <Row label="Realm" value={discovery?.realm ?? '—'} />
-          <Row label="Issuer" value={discovery?.oidcIssuer ?? '—'} />
+          <Row label={s.onboarding.discovery} value="/.well-known/erp.json" />
+          <Row label={s.onboarding.status} value={statusLabel} />
+          <Row label={s.onboarding.realm} value={discovery?.realm ?? '—'} />
+          <Row label={s.onboarding.issuer} value={discovery?.oidcIssuer ?? '—'} />
 
           {discoveryState.status === 'loading' ? (
             <View style={styles.inlineSpinner}>
@@ -374,7 +407,7 @@ export function OnboardingScreen() {
               <Text
                 style={[styles.inlineSpinnerText, { color: theme.colors.text }]}
               >
-                Contacting server…
+                {s.onboarding.contactingServer}
               </Text>
             </View>
           ) : null}
@@ -386,10 +419,14 @@ export function OnboardingScreen() {
           ) : null}
 
           {discoveryState.status === 'success' ? (
-            <Button title="Open login" onPress={onContinueToLogin} />
+            <Button title={s.onboarding.openLogin} onPress={onContinueToLogin} />
           ) : (
             <Button
-              title={discoveryState.status === 'loading' ? 'Connecting…' : 'Back'}
+              title={
+                discoveryState.status === 'loading'
+                  ? s.onboarding.connecting
+                  : s.onboarding.back
+              }
               onPress={onRetryDiscovery}
               disabled={discoveryState.status === 'loading'}
             />
@@ -408,14 +445,14 @@ export function OnboardingScreen() {
         contentContainerStyle={styles.container}
       >
         <Text style={[styles.title, { color: theme.colors.text }]}>
-          Choose company
+          {s.onboarding.chooseCompany}
         </Text>
 
         {loginState.status === 'loading' ? (
           <View style={styles.inlineSpinner}>
             <ActivityIndicator />
             <Text style={[styles.inlineSpinnerText, { color: theme.colors.text }]}>
-              Waiting for login…
+              {s.onboarding.waitingForLogin}
             </Text>
           </View>
         ) : null}
@@ -430,7 +467,7 @@ export function OnboardingScreen() {
           <View style={styles.inlineSpinner}>
             <ActivityIndicator />
             <Text style={[styles.inlineSpinnerText, { color: theme.colors.text }]}>
-              Loading companies…
+              {s.onboarding.loadingCompanies}
             </Text>
           </View>
         ) : null}
@@ -520,6 +557,7 @@ function TroubleAction({
 
 function ChangeServerButton({ onPress }: { onPress: () => void }) {
   const theme = useTheme();
+  const { strings: s } = useI18n();
 
   return (
     <GlassSurface style={styles.changeServerSurface} effect="regular" interactive>
@@ -533,7 +571,7 @@ function ChangeServerButton({ onPress }: { onPress: () => void }) {
       >
         <Server size={18} color={theme.colors.text} />
         <Text style={[styles.changeServerText, { color: theme.colors.text }]}>
-          Change server
+          {s.onboarding.changeServer}
         </Text>
       </Pressable>
     </GlassSurface>
@@ -548,12 +586,13 @@ function CompanyCard({
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const { strings: s } = useI18n();
 
   return (
     <GlassSurface style={styles.companyCard} effect="regular" interactive>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Use company ${company.name}`}
+        accessibilityLabel={s.onboarding.useCompanyA11y(company.name)}
         onPress={onPress}
         style={({ pressed }) => [
           styles.companyCardContent,
@@ -582,10 +621,10 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function errorMessage(err: unknown): string {
+function errorMessage(err: unknown, fallback: string): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
-  return 'Something went wrong';
+  return fallback;
 }
 
 function SavedCompanyPinModal({
@@ -606,6 +645,7 @@ function SavedCompanyPinModal({
   onCancel: () => void;
 }) {
   const theme = useTheme();
+  const { strings: s } = useI18n();
   const pinDotBorderStyle = useMemo(
     () => ({ borderColor: theme.colors.hairline }),
     [theme.colors.hairline],
@@ -628,7 +668,7 @@ function SavedCompanyPinModal({
             <View style={styles.pinModalHeaderRow}>
               <View style={styles.pinModalHeaderText}>
                 <Text style={[styles.pinModalTitle, { color: theme.colors.text }]}>
-                  Enter code
+                  {s.onboarding.enterCode}
                 </Text>
                 <Text
                   style={[
@@ -641,12 +681,12 @@ function SavedCompanyPinModal({
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Cancel PIN entry"
+                accessibilityLabel={s.onboarding.cancelPinA11y}
                 onPress={onCancel}
                 style={({ pressed }) => [pressed && styles.pressed]}
               >
                 <Text style={[styles.pinModalCancel, { color: theme.colors.textMuted }]}>
-                  Cancel
+                  {s.onboarding.cancel}
                 </Text>
               </Pressable>
             </View>
@@ -688,7 +728,7 @@ function SavedCompanyPinModal({
               <View style={styles.keypadSpacer} />
               <KeypadKey label="0" onPress={() => onDigitPress(0)} />
               <KeypadKey
-                accessibilityLabel="Delete"
+                accessibilityLabel={s.onboarding.delete}
                 disabled={value.length === 0}
                 onPress={onDeletePress}
               >

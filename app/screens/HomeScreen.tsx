@@ -19,12 +19,14 @@ import { SectionCard } from '../components/ui/SectionCard';
 import { Button } from '../components/ui/Button';
 import { IconButton } from '../components/ui/IconButton';
 import { ListRow } from '../components/ui/ListRow';
+import { useI18n } from '../i18n/useI18n';
 import type { RequestTemplateType } from '../navigation/types';
 import { makeStyles } from '../theme/makeStyles';
 import { useTheme } from '../theme/ThemeProvider';
 
 export function HomeScreen() {
   const theme = useTheme();
+  const { language, strings: s } = useI18n();
   const chartStyles = useChartStyles();
   const fg = theme.colors.text;
   const mutedFg = theme.colors.textMuted;
@@ -33,35 +35,56 @@ export function HomeScreen() {
   const navigation = useNavigation();
 
   const mailboxAddress = 'invoices@acme.example';
-  const lastUpdated = useMemo(() => new Date().toLocaleString(), []);
+  const lastUpdated = useMemo(() => new Date().toLocaleString(language), [language]);
   const chartWidth = Math.max(0, windowWidth - 64);
   const pieRadius = Math.max(72, Math.min(92, Math.floor(chartWidth / 3)));
 
   const quickActions: Array<{ label: string; type: RequestTemplateType; icon: any }> =
-    [
-      { label: 'Balance sheet', type: 'Balance sheet', icon: FileText },
-      { label: 'Bank declaration', type: 'Bank declarations', icon: Receipt },
-      { label: 'Credit loan P&L', type: 'Profit/expense (credit loan)', icon: ClipboardList },
-    ];
+    useMemo(
+      () => [
+        { label: s.home.quickActionBalanceSheet, type: 'Balance sheet', icon: FileText },
+        {
+          label: s.home.quickActionBankDeclaration,
+          type: 'Bank declarations',
+          icon: Receipt,
+        },
+        {
+          label: s.home.quickActionCreditLoan,
+          type: 'Profit/expense (credit loan)',
+          icon: ClipboardList,
+        },
+      ],
+      [
+        s.home.quickActionBalanceSheet,
+        s.home.quickActionBankDeclaration,
+        s.home.quickActionCreditLoan,
+      ],
+    );
 
+  const weekLabel = s.home.weekLabel;
   const incomeByWeekData = useMemo(
     () => [
-      { value: 3120, label: 'W1' },
-      { value: 2840, label: 'W2' },
-      { value: 3550, label: 'W3' },
-      { value: 2970, label: 'W4' },
+      { value: 3120, label: weekLabel(1) },
+      { value: 2840, label: weekLabel(2) },
+      { value: 3550, label: weekLabel(3) },
+      { value: 2970, label: weekLabel(4) },
     ],
-    [],
+    [weekLabel],
   );
 
   const expenseCategoriesData = useMemo(
     () => [
-      { value: 2400, label: 'Rent' },
-      { value: 1850, label: 'Supplies' },
-      { value: 920, label: 'Travel' },
-      { value: 640, label: 'Software' },
+      { value: 2400, label: s.home.expenseRent },
+      { value: 1850, label: s.home.expenseSupplies },
+      { value: 920, label: s.home.expenseTravel },
+      { value: 640, label: s.home.expenseSoftware },
     ],
-    [],
+    [
+      s.home.expenseRent,
+      s.home.expenseSupplies,
+      s.home.expenseTravel,
+      s.home.expenseSoftware,
+    ],
   );
 
   const cashflowTrendData = useMemo(() => {
@@ -70,29 +93,46 @@ export function HomeScreen() {
     return values.map((value, index) => {
       const monthIndex = values.length - 1 - index;
       const date = new Date(now.getFullYear(), now.getMonth() - monthIndex, 1);
-      const label = date.toLocaleString(undefined, { month: 'short' });
+      const label = date.toLocaleString(language, { month: 'short' });
       return { value, label };
     });
-  }, []);
+  }, [language]);
 
   const expenseMixData = useMemo(
     () => [
-      { value: 2400, color: theme.colors.negative, text: 'Rent' },
-      { value: 1850, color: theme.colors.accent, text: 'Ops' },
-      { value: 920, color: theme.colors.textMuted, text: 'Travel' },
-      { value: 640, color: theme.colors.positive, text: 'Soft' },
+      { value: 2400, color: theme.colors.negative, text: s.home.expenseMixRent },
+      { value: 1850, color: theme.colors.accent, text: s.home.expenseMixOps },
+      {
+        value: 920,
+        color: theme.colors.textMuted,
+        text: s.home.expenseMixTravel,
+      },
+      {
+        value: 640,
+        color: theme.colors.positive,
+        text: s.home.expenseMixSoftware,
+      },
     ],
-    [theme.colors.accent, theme.colors.negative, theme.colors.positive, theme.colors.textMuted],
+    [
+      s.home.expenseMixOps,
+      s.home.expenseMixRent,
+      s.home.expenseMixSoftware,
+      s.home.expenseMixTravel,
+      theme.colors.accent,
+      theme.colors.negative,
+      theme.colors.positive,
+      theme.colors.textMuted,
+    ],
   );
 
   const agingData = useMemo(
     () => [
-      { left: 3, right: 2, yAxisLabel: '0–7d' },
-      { left: 5, right: 4, yAxisLabel: '8–30d' },
-      { left: 2, right: 3, yAxisLabel: '31–60d' },
-      { left: 1, right: 2, yAxisLabel: '60+d' },
+      { left: 3, right: 2, yAxisLabel: s.home.aging0to7 },
+      { left: 5, right: 4, yAxisLabel: s.home.aging8to30 },
+      { left: 2, right: 3, yAxisLabel: s.home.aging31to60 },
+      { left: 1, right: 2, yAxisLabel: s.home.aging60plus },
     ],
-    [],
+    [s.home.aging0to7, s.home.aging31to60, s.home.aging60plus, s.home.aging8to30],
   );
 
   const transactionBubblesData = useMemo(
@@ -113,59 +153,64 @@ export function HomeScreen() {
         contentContainerStyle={styles.container}
         style={styles.transparentScreen}
       >
-        <ScreenHeader title="Dashboard" subtitle={`Last updated: ${lastUpdated}`} />
+        <ScreenHeader
+          title={s.home.dashboard}
+          subtitle={s.home.lastUpdated(lastUpdated)}
+        />
 
-        <SectionCard title="Balance snapshot">
+        <SectionCard title={s.home.balanceSnapshot}>
           <View style={styles.metricsRow}>
-            <Metric label="Income (MTD)" value="€12,480" />
-            <Metric label="Expenses (MTD)" value="€7,930" />
+            <Metric label={s.home.incomeMtd} value="€12,480" />
+            <Metric label={s.home.expensesMtd} value="€7,930" />
           </View>
           <View style={styles.metricsRow}>
-            <Metric label="Net (MTD)" value="€4,550" />
-            <Metric label="Cash" value="€28,120" />
+            <Metric label={s.home.netMtd} value="€4,550" />
+            <Metric label={s.home.cash} value="€28,120" />
           </View>
         </SectionCard>
 
-        <SectionCard title="Income prediction">
+        <SectionCard title={s.home.incomePrediction}>
           <Text style={[styles.bigValue, { color: fg }]}>€15,900</Text>
           <Text style={[styles.muted, { color: mutedFg }]}>
-            Simple extrapolation + recurring detection. Indicator only.
+            {s.home.incomePredictionDisclaimer}
           </Text>
           <Text style={[styles.muted, { color: mutedFg }]}>
-            Prediction last updated: {lastUpdated}
+            {s.home.predictionLastUpdated(lastUpdated)}
           </Text>
         </SectionCard>
 
         <SectionCard
-          title="Invoice completeness"
+          title={s.home.invoiceCompleteness}
           footer={
             <View style={styles.inlineActions}>
               <Button
-                title="Submit missing invoices"
+                title={s.home.submitMissingInvoices}
                 onPress={() => navigation.navigate('Documents')}
               />
             </View>
           }
         >
           <Text style={[styles.muted, { color: mutedFg }]}>
-            Indicator, not legal authority. Based on bank expenses vs submitted invoices.
+            {s.home.invoiceCompletenessDisclaimer}
           </Text>
           <View style={styles.mailboxRow}>
             <View style={styles.mailboxLeft}>
-              <Text style={[styles.mailboxLabel, { color: mutedFg }]}>Mailbox</Text>
+              <Text style={[styles.mailboxLabel, { color: mutedFg }]}>
+                {s.home.mailbox}
+              </Text>
               <Text style={[styles.mailboxValue, { color: fg }]}>
                 {mailboxAddress}
               </Text>
             </View>
             <View style={styles.mailboxActions}>
               <IconButton
-                accessibilityLabel="Copy mailbox address"
+                accessibilityLabel={s.home.copyMailboxAddressA11y}
                 icon={Copy}
                 color={fg}
-                onPress={() => copyToClipboard(mailboxAddress)}
+                onPress={() => copyToClipboard(mailboxAddress, s.home)}
               />
               <IconButton
-                accessibilityLabel="Share mailbox address"
+                accessibilityLabel={s.home.shareMailboxAddressA11y}
                 icon={Share2}
                 color={fg}
                 onPress={() => Share.share({ message: mailboxAddress })}
@@ -174,7 +219,7 @@ export function HomeScreen() {
           </View>
         </SectionCard>
 
-        <SectionCard title="Quick actions (requests)">
+        <SectionCard title={s.home.quickActionsRequests}>
           <View style={styles.quickActions}>
             {quickActions.map(item => (
               <QuickAction
@@ -192,12 +237,12 @@ export function HomeScreen() {
           </View>
         </SectionCard>
 
-        <SectionCard title="Charts (samples)">
+        <SectionCard title={s.home.chartsSamples}>
           <Text style={[styles.muted, { color: mutedFg }]}>
-            Dashboard-oriented samples (cashflow, expenses, invoices, transactions).
+            {s.home.chartsSamplesDescription}
           </Text>
 
-          <ChartSample title="Income by week (BarChart)">
+          <ChartSample title={s.home.incomeByWeek}>
             <BarChart
               data={incomeByWeekData}
               width={chartWidth}
@@ -216,7 +261,7 @@ export function HomeScreen() {
             />
           </ChartSample>
 
-          <ChartSample title="Top expense categories (horizontal BarChart)">
+          <ChartSample title={s.home.topExpenseCategories}>
             <BarChart
               data={expenseCategoriesData}
               width={chartWidth}
@@ -237,10 +282,10 @@ export function HomeScreen() {
           </ChartSample>
 
           <Text style={[styles.muted, { color: mutedFg }]}>
-            Tip: drag on the cashflow chart to inspect values (with haptics).
+            {s.home.cashflowTip}
           </Text>
 
-          <ChartSample title="Cashflow trend (interactive AreaChart)">
+          <ChartSample title={s.home.cashflowTrend}>
             <LineChart
               data={cashflowTrendData}
               width={chartWidth}
@@ -278,7 +323,7 @@ export function HomeScreen() {
             />
           </ChartSample>
 
-          <ChartSample title="Expense mix (donut PieChart)">
+          <ChartSample title={s.home.expenseMix}>
             <View style={styles.center}>
               <PieChart
                 data={expenseMixData}
@@ -293,7 +338,7 @@ export function HomeScreen() {
             </View>
           </ChartSample>
 
-          <ChartSample title="A/R vs A/P aging (PopulationPyramid)">
+          <ChartSample title={s.home.aging}>
             <PopulationPyramid
               data={agingData}
               width={chartWidth}
@@ -306,11 +351,11 @@ export function HomeScreen() {
             />
           </ChartSample>
 
-          <ChartSample title="Company signals (RadarChart)">
+          <ChartSample title={s.home.companySignals}>
             <View style={styles.center}>
               <RadarChart
                 data={[72, 58, 81, 44, 66]}
-                labels={['Cash', 'Invoices', 'Txns', 'Requests', 'Tax']}
+                labels={[...s.home.radarLabels]}
                 chartSize={Math.min(260, chartWidth)}
                 noOfSections={5}
                 polygonConfig={{
@@ -331,7 +376,7 @@ export function HomeScreen() {
             </View>
           </ChartSample>
 
-          <ChartSample title="Transactions (day × amount) (BubbleChart)">
+          <ChartSample title={s.home.transactionsBubble}>
             <BubbleChart
               data={transactionBubblesData}
               width={chartWidth}
@@ -352,25 +397,31 @@ export function HomeScreen() {
           </ChartSample>
         </SectionCard>
 
-        <SectionCard title="Recent activity">
+        <SectionCard title={s.home.recentActivity}>
           <View style={styles.list}>
             <ListRow
-              title="Invoice paid"
-              subtitle="Globex · €1,240 · Today"
-              right={<Text style={[styles.rowRight, { color: mutedFg }]}>View</Text>}
+              title={s.home.invoicePaid}
+              subtitle={`Globex · €1,240 · ${s.home.today}`}
+              right={
+                <Text style={[styles.rowRight, { color: mutedFg }]}>{s.home.view}</Text>
+              }
               onPress={() => navigation.navigate('Documents')}
             />
             <ListRow
-              title="New bank transaction"
-              subtitle="ACME Bank · -€89.20 · Yesterday"
-              right={<Text style={[styles.rowRight, { color: mutedFg }]}>Open</Text>}
+              title={s.home.newBankTransaction}
+              subtitle={`ACME Bank · -€89.20 · ${s.home.yesterday}`}
+              right={
+                <Text style={[styles.rowRight, { color: mutedFg }]}>{s.home.open}</Text>
+              }
               onPress={() => navigation.navigate('Transactions')}
             />
             <ListRow
-              title="Request completed"
-              subtitle="Balance sheet · Jan 2026 · Done"
+              title={s.home.requestCompleted}
+              subtitle={`${s.home.quickActionBalanceSheet} · ${s.home.jan2026} · ${s.home.done}`}
               right={
-                <Text style={[styles.rowRight, { color: mutedFg }]}>Download</Text>
+                <Text style={[styles.rowRight, { color: mutedFg }]}>
+                  {s.home.download}
+                </Text>
               }
               onPress={() => navigation.navigate('Requests')}
             />
@@ -490,6 +541,7 @@ function CashflowPointerLabel({
   pointerIndex: number;
 }) {
   const theme = useTheme();
+  const { strings: s } = useI18n();
   const lastPointerIndexRef = React.useRef<number | null>(null);
   const lastHapticAtRef = React.useRef(0);
 
@@ -508,7 +560,7 @@ function CashflowPointerLabel({
   }, [pointerIndex]);
 
   const item = items?.[0];
-  const label = item?.label ?? `Point ${pointerIndex + 1}`;
+  const label = item?.label ?? s.home.point(pointerIndex + 1);
   const value = typeof item?.value === 'number' ? formatEuro(item.value) : '—';
 
   return (
@@ -629,11 +681,19 @@ const quickActionStyles = StyleSheet.create({
   },
 });
 
-function copyToClipboard(value: string) {
+function copyToClipboard(
+  value: string,
+  labels: {
+    copiedTitle: string;
+    mailboxCopiedBody: string;
+    copyUnavailableTitle: string;
+    copyUnavailableBody: string;
+  },
+) {
   try {
     Clipboard.setString(value);
-    Alert.alert('Copied', 'Mailbox address copied to clipboard.');
+    Alert.alert(labels.copiedTitle, labels.mailboxCopiedBody);
   } catch {
-    Alert.alert('Copy unavailable', 'Unable to access clipboard on this device.');
+    Alert.alert(labels.copyUnavailableTitle, labels.copyUnavailableBody);
   }
 }
