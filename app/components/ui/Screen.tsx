@@ -33,7 +33,7 @@ export function Screen({
       : 0;
   const paddedContentStyle = [
     contentContainerStyle,
-    { paddingBottom: basePaddingBottom + tabBarHeight + 24 },
+    { paddingBottom: basePaddingBottom + tabBarHeight + 40 },
   ];
 
   return (
